@@ -1201,7 +1201,7 @@ export const generateNewStudyPlan = (
       
       // Apply frequency preference if enabled and no conflict detected
       if (task.respectFrequencyForDeadlines !== false && task.targetFrequency) {
-        const conflictCheck = checkFrequencyDeadlineConflict(task, settings);
+        const conflictCheck = checkFrequencyDeadlineConflict(task, settings, fixedCommitments, dailyRemainingHours);
 
         if (!conflictCheck.hasConflict) {
           // Apply frequency filtering to respect user preference
