@@ -1299,7 +1299,7 @@ export const generateNewStudyPlan = (
               }
             }
 
-            daysForTask = filteredDays.sort();
+            // Validate that 3x-week scheduling can accommodate the task\n            const totalAvailable3x = filteredDays.reduce((total, date) => {\n              let availableOnDay = dailyRemainingHours[date] || settings.dailyAvailableHours;\n              const committedHours = calculateCommittedHoursForDate(date, fixedCommitments);\n              return total + Math.max(0, availableOnDay - committedHours);\n            }, 0);\n            \n            if (totalAvailable3x < task.estimatedHours) {\n              console.warn(`3x-week frequency for task \"${task.title}\" insufficient (${totalAvailable3x.toFixed(1)}h vs ${task.estimatedHours}h needed), adding more days`);\n              // Add more days from the available pool to meet requirements\n              const neededDays = Math.ceil(task.estimatedHours / (settings.maxSessionHours || 3));\n              const additionalDays = daysWithAvailability\n                .filter(({ date }) => !filteredDays.includes(date))\n                .slice(0, Math.max(0, neededDays - filteredDays.length))\n                .map(d => d.date);\n              \n              filteredDays.push(...additionalDays);\n            }\n            \n            daysForTask = filteredDays.sort();
           } else if (task.targetFrequency === 'flexible') {
             // For flexible tasks, adapt the gap based on available time and task urgency
             sessionGap = task.importance ? 2 : 3; // More frequent for important tasks
