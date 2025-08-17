@@ -192,7 +192,9 @@ export const doesCommitmentApplyToDate = (commitment: FixedCommitment, date: str
  */
 export const checkFrequencyDeadlineConflict = (
   task: Pick<Task, 'deadline' | 'estimatedHours' | 'targetFrequency' | 'deadlineType' | 'minWorkBlock' | 'startDate'>,
-  settings: UserSettings
+  settings: UserSettings,
+  fixedCommitments: FixedCommitment[] = [],
+  dailyRemainingHours: Record<string, number> = {}
 ): { hasConflict: boolean; reason?: string; recommendedFrequency?: string } => {
   // No conflict for tasks without deadlines
   if (!task.deadline || task.deadlineType === 'none') {
@@ -232,9 +234,31 @@ export const checkFrequencyDeadlineConflict = (
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  // Calculate minimum sessions needed based on task requirements
+  // Calculate minimum sessions needed based on task requirements and real availability
   const minSessionHours = (task.minWorkBlock || 30) / 60;
-  const minSessionsNeeded = Math.ceil(task.estimatedHours / Math.max(minSessionHours, settings.dailyAvailableHours));
+
+  // Get real available days with actual capacity considering commitments
+  const availableDaysWithCapacity: Array<{ date: string; availableHours: number }> = [];
+  const currentDate = new Date(begin);
+
+  while (currentDate <= bufferDate) {
+    const dayOfWeek = currentDate.getDay();
+    if (settings.workDays.includes(dayOfWeek)) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      let availableOnDay = dailyRemainingHours[dateStr] || settings.dailyAvailableHours;
+
+      // Account for commitments on this day
+      const committedHours = calculateCommittedHoursForDate(dateStr, fixedCommitments);
+      availableOnDay = Math.max(0, availableOnDay - committedHours);
+
+      if (availableOnDay >= minSessionHours) {
+        availableDaysWithCapacity.push({ date: dateStr, availableHours: availableOnDay });
+      }
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const minSessionsNeeded = Math.ceil(task.estimatedHours / Math.max(minSessionHours, settings.maxSessionHours || 4));
   
   // Determine required frequency based on task preference
   let requiredDaysBetweenSessions = 1;
@@ -254,11 +278,21 @@ export const checkFrequencyDeadlineConflict = (
       break;
   }
 
-  // Calculate how many sessions we can fit with the preferred frequency
-  const maxSessionsWithFrequency = Math.floor(workDaysCount / requiredDaysBetweenSessions) + 1;
-  
-  // Check if frequency allows sufficient sessions before deadline
-  if (maxSessionsWithFrequency < minSessionsNeeded) {
+  // Calculate how many sessions we can fit with the preferred frequency using real availability
+  let sessionsWithFrequency = 0;
+  let totalCapacityWithFrequency = 0;
+
+  // Simulate the frequency preference on available days
+  for (let i = 0; i < availableDaysWithCapacity.length; i += requiredDaysBetweenSessions) {
+    sessionsWithFrequency++;
+    totalCapacityWithFrequency += availableDaysWithCapacity[i].availableHours;
+  }
+
+  // Check if frequency allows sufficient sessions and capacity before deadline
+  const hasInsufficientSessions = sessionsWithFrequency < minSessionsNeeded;
+  const hasInsufficientCapacity = totalCapacityWithFrequency < task.estimatedHours;
+
+  if (hasInsufficientSessions || hasInsufficientCapacity) {
     let recommendedFrequency = 'daily';
     
     // Try to find a less restrictive frequency that works
@@ -275,9 +309,13 @@ export const checkFrequencyDeadlineConflict = (
       }
     }
     
+    const conflictReason = hasInsufficientSessions
+      ? `Your ${task.targetFrequency} frequency only allows ${sessionsWithFrequency} sessions, but you need at least ${minSessionsNeeded} sessions`
+      : `Your ${task.targetFrequency} frequency only provides ${totalCapacityWithFrequency.toFixed(1)}h capacity, but you need ${task.estimatedHours}h`;
+
     return {
       hasConflict: true,
-      reason: `Given your start date, your ${task.targetFrequency} frequency only allows ${maxSessionsWithFrequency} sessions, but you need at least ${minSessionsNeeded} sessions to complete this task before the deadline.`,
+      reason: `Given your commitments and available time, ${conflictReason} to complete this task before the deadline.`,
       recommendedFrequency
     };
   }
