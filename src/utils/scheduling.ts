@@ -1214,15 +1214,64 @@ export const generateNewStudyPlan = (
 
               // Sort the selected days chronologically
               weeklyFilteredDays.sort();
-              daysForTask = weeklyFilteredDays;
+
+              // Validate that the filtered days can actually accommodate the task
+              // Calculate if we have enough total capacity across the filtered days
+              const totalAvailableHours = weeklyFilteredDays.reduce((total, date) => {
+                let availableOnDay = dailyRemainingHours[date] || settings.dailyAvailableHours;
+                const committedHours = calculateCommittedHoursForDate(date, fixedCommitments);
+                return total + Math.max(0, availableOnDay - committedHours);
+              }, 0);
+
+              // If the filtered days can't accommodate the task, gradually relax the frequency
+              if (totalAvailableHours < task.estimatedHours) {
+                console.warn(`Weekly frequency for task "${task.title}" cannot accommodate ${task.estimatedHours}h (only ${totalAvailableHours.toFixed(1)}h available), falling back to more flexible scheduling`);
+
+                // Try 3x-week frequency as fallback
+                const threePerWeekDays = daysWithAvailability
+                  .slice() // Create a copy
+                  .filter((_, index) => index % 2 === 0) // Take every 2nd day for roughly 3x per week
+                  .slice(0, Math.min(daysForTask.length, Math.ceil(task.estimatedHours / (settings.maxSessionHours || 3))));
+
+                const threePerWeekCapacity = threePerWeekDays.reduce((total, { availableTime }) => total + availableTime, 0);
+
+                if (threePerWeekCapacity >= task.estimatedHours) {
+                  daysForTask = threePerWeekDays.map(d => d.date).sort();
+                  console.log(`Fallback to 3x-week scheduling successful for task "${task.title}"`);
+                } else {
+                  // Final fallback: use best available days up to task requirements
+                  const neededDays = Math.ceil(task.estimatedHours / (settings.maxSessionHours || 3));
+                  daysForTask = daysWithAvailability
+                    .slice(0, Math.min(neededDays, daysWithAvailability.length))
+                    .map(d => d.date)
+                    .sort();
+                  console.log(`Final fallback: using ${daysForTask.length} best available days for task "${task.title}"`);
+                }
+              } else {
+                daysForTask = weeklyFilteredDays;
+              }
             } else {
-              // Less than 2 weeks available, use regular gap-based scheduling
+              // Less than 2 weeks available, use regular gap-based scheduling but validate capacity
               sessionGap = 7;
               const frequencyFilteredDays: string[] = [];
               for (let i = 0; i < daysForTask.length; i += sessionGap) {
                 frequencyFilteredDays.push(daysForTask[i]);
               }
-              daysForTask = frequencyFilteredDays;
+
+              // Validate that gap-based weekly scheduling can accommodate the task
+              const totalCapacity = frequencyFilteredDays.reduce((total, date) => {
+                let availableOnDay = dailyRemainingHours[date] || settings.dailyAvailableHours;
+                const committedHours = calculateCommittedHoursForDate(date, fixedCommitments);
+                return total + Math.max(0, availableOnDay - committedHours);
+              }, 0);
+
+              if (totalCapacity < task.estimatedHours) {
+                console.warn(`Gap-based weekly frequency for task "${task.title}" insufficient (${totalCapacity.toFixed(1)}h vs ${task.estimatedHours}h needed), using more days`);
+                // Use original days without frequency filtering in this case
+                daysForTask = daysForTask; // Keep original days
+              } else {
+                daysForTask = frequencyFilteredDays;
+              }
             }
           } else if (task.targetFrequency === '3x-week') {
             // For 3x per week, select 3 days per week with best availability
