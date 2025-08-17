@@ -3027,14 +3027,7 @@ export const redistributeAfterTaskDeletion = (
     });
     
             const commitmentsForDay = fixedCommitments.filter(commitment => {
-          // Check if this commitment applies to this specific date
-          if (commitment.recurring) {
-            // For recurring commitments, check if the day of week matches
-            return commitment.daysOfWeek.includes(new Date(plan.date).getDay());
-          } else {
-            // For non-recurring commitments, check if the specific date matches
-            return commitment.specificDates?.includes(plan.date) || false;
-          }
+          return doesCommitmentApplyToDate(commitment, plan.date);
         });
     let assignedSessions: StudySession[] = [];
     
