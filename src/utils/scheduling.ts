@@ -1015,11 +1015,7 @@ export const generateNewStudyPlan = (
 
             // Find available time slot for this session to prevent overlaps
             const commitmentsForDay = fixedCommitments.filter(commitment => {
-              if (commitment.recurring) {
-                return commitment.daysOfWeek.includes(new Date(date).getDay());
-              } else {
-                return commitment.specificDates?.includes(date) || false;
-              }
+              return doesCommitmentApplyToDate(commitment, date);
             });
 
             const timeSlot = findNextAvailableTimeSlot(
