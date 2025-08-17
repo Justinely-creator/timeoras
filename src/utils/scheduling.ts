@@ -239,12 +239,12 @@ export const checkFrequencyDeadlineConflict = (
 
   // Get real available days with actual capacity considering commitments
   const availableDaysWithCapacity: Array<{ date: string; availableHours: number }> = [];
-  const currentDate = new Date(begin);
+  const iterDate = new Date(begin);
 
-  while (currentDate <= bufferDate) {
-    const dayOfWeek = currentDate.getDay();
+  while (iterDate <= bufferDate) {
+    const dayOfWeek = iterDate.getDay();
     if (settings.workDays.includes(dayOfWeek)) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = iterDate.toISOString().split('T')[0];
       let availableOnDay = dailyRemainingHours[dateStr] || settings.dailyAvailableHours;
 
       // Account for commitments on this day
