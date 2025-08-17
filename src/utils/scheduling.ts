@@ -1619,11 +1619,7 @@ export const generateNewStudyPlan = (
 
               // Find proper time slot using the existing function to avoid conflicts
               const commitmentsForDay = fixedCommitments.filter(commitment => {
-                if (commitment.recurring) {
-                  return commitment.daysOfWeek.includes(new Date(currentDate).getDay());
-                } else {
-                  return commitment.specificDates?.includes(currentDate) || false;
-                }
+                return doesCommitmentApplyToDate(commitment, currentDate);
               });
 
               const slot = findNextAvailableTimeSlot(
