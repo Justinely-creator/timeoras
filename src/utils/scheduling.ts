@@ -255,7 +255,7 @@ export const checkFrequencyDeadlineConflict = (
         availableDaysWithCapacity.push({ date: dateStr, availableHours: availableOnDay });
       }
     }
-    currentDate.setDate(currentDate.getDate() + 1);
+    iterDate.setDate(iterDate.getDate() + 1);
   }
 
   const minSessionsNeeded = Math.ceil(task.estimatedHours / Math.max(minSessionHours, settings.maxSessionHours || 4));
