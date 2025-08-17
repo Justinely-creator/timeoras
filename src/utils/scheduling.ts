@@ -1501,15 +1501,9 @@ export const generateNewStudyPlan = (
         return new Date(taskA.deadline).getTime() - new Date(taskB.deadline).getTime();
       });
       // Assign time slots for each session, ensuring no overlap with commitments or other sessions
+      // Use proper commitment filtering that handles both fixed and smart commitments
       const commitmentsForDay = fixedCommitments.filter(commitment => {
-        // Check if this commitment applies to this specific date
-        if (commitment.recurring) {
-          // For recurring commitments, check if the day of week matches
-          return commitment.daysOfWeek.includes(new Date(plan.date).getDay());
-        } else {
-          // For non-recurring commitments, check if the specific date matches
-          return commitment.specificDates?.includes(plan.date) || false;
-        }
+        return doesCommitmentApplyToDate(commitment, plan.date);
       });
       let assignedSessions: StudySession[] = [];
       for (const session of plan.plannedTasks) {
