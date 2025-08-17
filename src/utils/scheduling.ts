@@ -1885,11 +1885,7 @@ export const generateNewStudyPlan = (
 
       // Assign time slots with same logic as other modes
       const commitmentsForDay = fixedCommitments.filter(commitment => {
-        if (commitment.recurring) {
-          return commitment.daysOfWeek.includes(new Date(plan.date).getDay());
-        } else {
-          return commitment.specificDates?.includes(plan.date) || false;
-        }
+        return doesCommitmentApplyToDate(commitment, plan.date);
       });
 
       let assignedSessions: StudySession[] = [];
@@ -2097,14 +2093,7 @@ export const generateNewStudyPlan = (
     let availableHours = dailyRemainingHours[date];
     // Get all fixed commitments for this day
             const commitmentsForDay = fixedCommitments.filter(commitment => {
-          // Check if this commitment applies to this specific date
-          if (commitment.recurring) {
-            // For recurring commitments, check if the day of week matches
-            return commitment.daysOfWeek.includes(new Date(date).getDay());
-          } else {
-            // For non-recurring commitments, check if the specific date matches
-            return commitment.specificDates?.includes(date) || false;
-          }
+          return doesCommitmentApplyToDate(commitment, date);
         });
     // Get tasks that still need hours and are not past their deadline (using same logic as even mode)
     const tasksForDay = tasksSorted.filter(task => {
